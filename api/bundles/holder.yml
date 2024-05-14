@@ -22,7 +22,8 @@ paths:
         - oAuth2: []
         - zCap: []
       summary: Gets a credential or verifiable credential by ID. To get a credential that does not have credential.id set but has an associated credentialId value, pass credentialId instead.
-      expectedCaller: Issuer Coordinator
+      servers:
+        - url: Issuer Coordinator
       operationId: getCredential
       parameters:
         - $ref: '#/components/parameters/ObjectId'
@@ -57,7 +58,8 @@ paths:
         - oAuth2: []
         - zCap: []
       summary: Deletes a credential or verifiable credential by ID. To delete a credential that does not have credential.id set but has an associated credentialId value, pass credentialId instead.
-      expectedCaller: Issuer Coordinator
+      servers:
+        - url: Issuer Coordinator
       operationId: deleteCredential
       parameters:
         - $ref: '#/components/parameters/ObjectId'
@@ -86,7 +88,8 @@ paths:
         - zCap: []
       summary: Gets list of credentials or verifiable credentials
       operationId: getCredentials
-      expectedCaller: Holder Coordinator or Issuer Coordinator
+      servers:
+        - url: Holder Coordinator or Issuer Coordinator
       parameters:
         - in: query
           name: type
@@ -128,7 +131,8 @@ paths:
       summary: Derives a credential and returns it in the response body.
       operationId: deriveCredential
       description: Derives a credential and returns it in the response body.
-      expectedCaller: Holder Coordinator
+      servers:
+        - url: Holder Coordinator
       requestBody:
         content:
           application/json:
@@ -158,7 +162,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: getPresentation
-      expectedCaller: Holder Coordinator
+      servers:
+        - url: Holder Coordinator
       parameters:
         - $ref: '#/components/parameters/ObjectId'
       responses:
@@ -191,7 +196,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: deletePresentation
-      expectedCaller: Holder Coordinator
+      servers:
+        - url: Holder Coordinator
       parameters:
         - $ref: '#/components/parameters/ObjectId'
       responses:
@@ -219,7 +225,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: getPresentations
-      expectedCaller: Holder Coordinator
+      servers:
+        - url: Holder Coordinator
       parameters:
         - in: query
           name: type
@@ -259,7 +266,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: createPresentation
-      expectedCaller: Holder Coordinator
+      servers:
+        - url: Holder Coordinator
       description: Creates a presentation and returns it in the response body.
       requestBody:
         content:
