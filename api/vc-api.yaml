@@ -582,7 +582,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: verifyCredential
-      expectedCaller: Verification Coordinator
+      servers:
+        - url: Verification Coordinator
       description: >-
         Verifies a verifiableCredential and returns a verificationResult in the
         response body.
@@ -615,7 +616,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: verifyPresentation
-      expectedCaller: Verification Coordinator
+      servers:
+        - url: Verification Coordinator
       description: >-
         Verifies a verifiablePresentation and returns a verificationResult in
         the response body.  Given the possibility of denial of service, buffer
@@ -656,7 +658,8 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: challenge
-      expectedCaller: Verification Coordinator
+      servers:
+        - url: Verification Coordinator
       description: >-
         Creates a challenge to be used as `options.challenge` in future
         requests.
