@@ -13,6 +13,7 @@ servers:
   - url: https://issuer.qa.veres.app/issuers/z19mTE4x8KHRaQLgdoYwsfPnU
     description: Veres Issuer (Quality Assurance)
 paths:
+  expectedCaller: Issuer Coordinator
   /credentials/issue:
     post:
       summary: Issues a credential and returns it in the response body.
@@ -23,7 +24,6 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: issueCredential
-      expectedCaller: Issuer Coordinator
       description: Issues a credential and returns it in the response body.
       requestBody:
         content:

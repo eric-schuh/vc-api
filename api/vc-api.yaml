@@ -508,6 +508,25 @@ paths:
           description: Internal server error.
         '501':
           description: Service not implemented.
+  expectedCaller:
+    '0': I
+    '1': s
+    '2': s
+    '3': u
+    '4': e
+    '5': r
+    '6': ' '
+    '7': C
+    '8': o
+    '9': o
+    '10': r
+    '11': d
+    '12': i
+    '13': 'n'
+    '14': a
+    '15': t
+    '16': o
+    '17': r
   /credentials/issue:
     post:
       summary: Issues a credential and returns it in the response body.
@@ -518,7 +537,6 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: issueCredential
-      expectedCaller: Issuer Coordinator
       description: Issues a credential and returns it in the response body.
       requestBody:
         content:
