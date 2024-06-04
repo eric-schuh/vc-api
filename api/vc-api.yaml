@@ -45,6 +45,7 @@ paths:
         - zCap: []
       operationId: createWorkflow
       description: Creates a new workflow and returns workflowId in the response body.
+      x-expectedCaller: Administrators
       requestBody:
         content:
           application/json:
@@ -78,6 +79,7 @@ paths:
       description: >-
         Gets the configuration of an existing workflow and returns it in the
         response body.
+      x-expectedCaller: Administrators
       parameters:
         - $ref: '#/components/parameters/LocalWorkflowId'
       responses:
@@ -108,6 +110,7 @@ paths:
       description: >-
         Creates a new exchange and returns exchangeId and time to live in the
         response body.
+      x-expectedCaller: Owner Coordinator
       parameters:
         - $ref: '#/components/parameters/LocalWorkflowId'
       requestBody:
@@ -143,6 +146,7 @@ paths:
       description: >-
         Gets the configuration of an existing exchange and returns it in the
         response body.
+      x-expectedCaller: Owner Coordinator
       parameters:
         - $ref: '#/components/parameters/LocalWorkflowId'
         - $ref: '#/components/parameters/LocalExchangeId'
@@ -175,6 +179,7 @@ paths:
         Participate in an exchange. Posting an empty body will start the
         exchange or return what the exchange is expecting to complete the next
         step.
+      x-expectedCaller: Anyone
       parameters:
         - $ref: '#/components/parameters/LocalWorkflowId'
         - $ref: '#/components/parameters/LocalExchangeId'
@@ -210,8 +215,7 @@ paths:
         Gets a credential or verifiable credential by ID. To get a credential
         that does not have credential.id set but has an associated credentialId
         value, pass credentialId instead.
-      servers:
-        - url: Issuer Coordinator
+      x-expectedCaller: Issuer Coordinator
       operationId: getCredential
       parameters:
         - $ref: '#/components/parameters/ObjectId'
@@ -251,8 +255,7 @@ paths:
         Deletes a credential or verifiable credential by ID. To delete a
         credential that does not have credential.id set but has an associated
         credentialId value, pass credentialId instead.
-      servers:
-        - url: Issuer Coordinator
+      x-expectedCaller: Issuer Coordinator
       operationId: deleteCredential
       parameters:
         - $ref: '#/components/parameters/ObjectId'
@@ -283,8 +286,7 @@ paths:
         - zCap: []
       summary: Gets list of credentials or verifiable credentials
       operationId: getCredentials
-      servers:
-        - url: Holder Coordinator or Issuer Coordinator
+      x-expectedCaller: Holder Coordinator or Issuer Coordinator
       parameters:
         - in: query
           name: type
@@ -326,8 +328,7 @@ paths:
       summary: Derives a credential and returns it in the response body.
       operationId: deriveCredential
       description: Derives a credential and returns it in the response body.
-      servers:
-        - url: Holder Coordinator
+      x-expectedCaller: Holder Coordinator
       requestBody:
         content:
           application/json:
@@ -357,8 +358,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: getPresentation
-      servers:
-        - url: Holder Coordinator
+      x-expectedCaller: Holder Coordinator
       parameters:
         - $ref: '#/components/parameters/ObjectId'
       responses:
@@ -391,8 +391,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: deletePresentation
-      servers:
-        - url: Holder Coordinator
+      x-expectedCaller: Holder Coordinator
       parameters:
         - $ref: '#/components/parameters/ObjectId'
       responses:
@@ -422,8 +421,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: getPresentations
-      servers:
-        - url: Holder Coordinator
+      x-expectedCaller: Holder Coordinator
       parameters:
         - in: query
           name: type
@@ -463,8 +461,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: createPresentation
-      servers:
-        - url: Holder Coordinator
+      x-expectedCaller: Holder Coordinator
       description: Creates a presentation and returns it in the response body.
       requestBody:
         content:
@@ -692,8 +689,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: issueCredential
-      servers:
-        - url: Issuer Coordinator
+      x-expectedCaller: Issuer Coordinator
       description: Issues a credential and returns it in the response body.
       requestBody:
         content:
@@ -726,8 +722,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: updateCredentialStatus
-      servers:
-        - url: Verifier Service
+      x-expectedCaller: Verifier Service
       description: Updates the status of an issued credential.
       requestBody:
         content:
@@ -756,8 +751,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: verifyCredential
-      servers:
-        - url: Verification Coordinator
+      x-expectedCaller: Verification Coordinator
       description: >-
         Verifies a verifiableCredential and returns a verificationResult in the
         response body.
@@ -790,8 +784,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: verifyPresentation
-      servers:
-        - url: Verification Coordinator
+      x-expectedCaller: Verification Coordinator
       description: >-
         Verifies a verifiablePresentation and returns a verificationResult in
         the response body.  Given the possibility of denial of service, buffer
@@ -832,8 +825,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: challenge
-      servers:
-        - url: Verification Coordinator
+      x-expectedCaller: Verification Coordinator
       description: >-
         Creates a challenge to be used as `options.challenge` in future
         requests.
