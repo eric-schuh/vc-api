@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   version: 0.0.3-unstable
-  title: VC Holder API
+  title: VC Exchanges and Workflows API
   description: >-
     This is an Experimental Open API Specification for the [VC Data
     Model](https://www.w3.org/TR/vc-data-model/).
@@ -17,6 +17,8 @@ servers:
   - url: https://issuer.qa.veres.app/issuers/z19mTE4x8KHRaQLgdoYwsfPnU
     description: Veres Issuer (Quality Assurance)
 tags:
+  - name: exchanges_Credentials
+    x-displayName: Credentials
   - name: holder_Credentials
     x-displayName: Credentials
   - name: holder_Presentations
@@ -32,6 +34,170 @@ tags:
   - name: verifier_other
     x-displayName: other
 paths:
+  /workflows:
+    post:
+      summary: Creates a new workflow and returns its information in the response body.
+      tags:
+        - exchanges_Credentials
+      security:
+        - networkAuth: []
+        - oAuth2: []
+        - zCap: []
+      operationId: createWorkflow
+      description: Creates a new workflow and returns workflowId in the response body.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRequest'
+      responses:
+        '200':
+          description: Workflow successfully created!
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateWorkflowResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Not Authorized
+        '500':
+          description: Internal Error
+  /workflows/{localWorkflowId}:
+    get:
+      summary: >-
+        Gets the configuration of an existing workflow and returns it in the
+        response body.
+      tags:
+        - exchanges_Credentials
+      security:
+        - networkAuth: []
+        - oAuth2: []
+        - zCap: []
+      operationId: getWorkflowConfiguration
+      description: >-
+        Gets the configuration of an existing workflow and returns it in the
+        response body.
+      parameters:
+        - $ref: '#/components/parameters/LocalWorkflowId'
+      responses:
+        '200':
+          description: Workflow configuration retrieved!
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Not Authorized
+        '500':
+          description: Internal Error
+  /workflows/{localWorkflowId}/exchanges:
+    post:
+      summary: >-
+        Creates a new exchange and returns exchangeId and time to live in the
+        response body.
+      tags:
+        - exchanges_Credentials
+      security:
+        - networkAuth: []
+        - oAuth2: []
+        - zCap: []
+      operationId: createExchange
+      description: >-
+        Creates a new exchange and returns exchangeId and time to live in the
+        response body.
+      parameters:
+        - $ref: '#/components/parameters/LocalWorkflowId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExchangeRequest'
+      responses:
+        '200':
+          description: Exchange successfully created!
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateExchangeResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Not Authorized
+        '500':
+          description: Internal Error
+  /workflows/{localWorkflowId}/exchanges/{localExchangeId}:
+    get:
+      summary: >-
+        Gets the state of an existing exchange and returns it in the response
+        body.
+      tags:
+        - exchanges_Credentials
+      security:
+        - networkAuth: []
+        - oAuth2: []
+        - zCap: []
+      operationId: getExchangeConfiguration
+      description: >-
+        Gets the configuration of an existing exchange and returns it in the
+        response body.
+      parameters:
+        - $ref: '#/components/parameters/LocalWorkflowId'
+        - $ref: '#/components/parameters/LocalExchangeId'
+      responses:
+        '200':
+          description: Exchange configuration retrieved!
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetExchangeResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Not Authorized
+        '500':
+          description: Internal Error
+    post:
+      summary: >-
+        Participate in an exchange. Posting an empty body will start the
+        exchange or return what the exchange is expecting to complete the next
+        step.
+      tags:
+        - exchanges_Credentials
+      security:
+        - networkAuth: []
+        - oAuth2: []
+        - zCap: []
+      operationId: participateInExchange
+      description: >-
+        Participate in an exchange. Posting an empty body will start the
+        exchange or return what the exchange is expecting to complete the next
+        step.
+      parameters:
+        - $ref: '#/components/parameters/LocalWorkflowId'
+        - $ref: '#/components/parameters/LocalExchangeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                verifiablePresentation:
+                  $ref: '#/components/schemas/VerifiablePresentation'
+      responses:
+        '200':
+          description: Exchange progressed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeParticipationResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Not Authorized
+        '500':
+          description: Internal Error
   /credentials/{id}:
     get:
       tags:
@@ -703,82 +869,339 @@ components:
       scheme: bearer
       bearerFormat: VcapiOauth2
   schemas:
-    DeriveCredentialRequest:
+    CreateWorkflowRequest:
       type: object
+      additionalProperties: false
+      description: Object containing information for creating a workflow.
       properties:
-        verifiableCredential:
-          $ref: '#/components/schemas/VerifiableCredential'
-        options:
-          $ref: '#/components/schemas/DeriveCredentialOptions'
-    DeriveCredentialResponse:
-      $ref: '#/components/schemas/VerifiableCredential'
-    CreatePresentationRequest:
-      type: object
-      properties:
-        presentation:
-          $ref: '#/components/schemas/Presentation'
-        options:
-          $ref: '#/components/schemas/PresentCredentialOptions'
-    CreatePresentationResponse:
-      type: object
-      properties:
-        verifiablePresentation:
-          $ref: '#/components/schemas/VerifiablePresentation'
-    NotifyPresentationAvailableRequest:
-      type: object
-      properties:
-        query:
+        workflowData:
           type: object
-          description: See https://w3c-ccg.github.io/vp-request-spec/#format
+          additionalProperties: false
+          description: Object containing information for creating a workflow.
           properties:
-            type:
-              type: string
-              description: The type of query the server should reply with.
-            credentialQuery:
+            steps:
               type: object
-              description: Details of the client's available presentation
-      example:
-        query:
-          - type: RequestQueryByFrame
-            credentialQuery:
-              - type:
-                  - VerifiableCredential
-                  - CommercialInvoiceCertificate
-                reason: Wallet XYZ is ready to selectively disclose new credentials.
-    ErrorResponse:
+              description: >-
+                One or more steps required to complete an exchange on the
+                workflow. Passing the steps object is REQUIRED.
+              properties:
+                stepName:
+                  type: object
+                  description: The name of the step.
+                  properties:
+                    step:
+                      $ref: '#/components/schemas/WorkflowStep'
+            initialStep:
+              type: string
+              description: >-
+                The step from the above set that the exchange starts on. Passing
+                intialStep is REQUIRED.
+            controller:
+              type: string
+              description: The controller of the instance. Passing controller is OPTIONAL.
+            authorization:
+              type: string
+              description: >-
+                Authorization scheme information (e.g., OAuth2 configuration).
+                Passing authorization is OPTIONAL.
+            credentialTemplates:
+              type: array
+              description: >-
+                One or more VC templates for issuance. Passing
+                credentialTemplates is OPTIONAL.
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  template:
+                    type: string
+            workflowId:
+              type: string
+              description: >-
+                the ID that will be used for the created workflow. workflowId is
+                OPTIONAL.
+    CreateWorkflowResponse:
       type: object
-      description: A response that denotes that an error has occurred.
+      additionalProperties: false
+      description: Object containing information about a created workflow.
       properties:
-        id:
+        workflowId:
           type: string
-          pattern: '[a-z0-9\-]{8,}'
-          description: An error id.
-        message:
-          type: string
-          minLength: 10
-          maxLength: 100
-          description: The error message.
-        details:
+          description: The URL that uniquely identifies the created workflow.
+    GetWorkflowResponse:
+      type: object
+      additionalProperties: false
+      description: Object containing information about a workflow.
+      properties:
+        workflowData:
           type: object
-          description: An object with error details.
-      required:
-        - id
-        - message
-      example:
-        id: invalid-json
-        message: The provided JSON data was malformed.
-    StorePresentationRequest:
-      $ref: '#/components/schemas/VerifiablePresentation'
-    VerifiablePresentationRequestBody:
+          additionalProperties: false
+          description: Object containing information about a created workflow.
+          properties:
+            stepInformation:
+              type: object
+              description: >-
+                Information about the steps required for the workflow. Returning
+                stepInformation is REQUIRED.
+              properties:
+                exchanges:
+                  type: array
+                  description: >-
+                    The identifiers of the current exchanges associated with the
+                    workflow instance.
+                  items:
+                    type: string
+                steps:
+                  type: object
+                  description: >-
+                    One or more steps required to complete an exchange on the
+                    workflow.
+                  properties:
+                    stepName:
+                      type: object
+                      description: The name of the step.
+                      properties:
+                        step:
+                          $ref: '#/components/schemas/WorkflowStep'
+                initialStep:
+                  type: string
+                  description: The step from the above set that the exchange starts on.
+            controller:
+              type: string
+              description: >-
+                The controller of the instance. Returning controller is
+                OPTIONAL.
+            authorization:
+              type: object
+              description: >-
+                Authorization scheme information (e.g., OAuth2 configuration).
+                Returning authorization is OPTIONAL.
+            credentialTemplates:
+              type: array
+              description: >-
+                One or more VC templates for issuance. Returning
+                credentialTemplates is OPTIONAL.
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    description: The type of template.
+                  template:
+                    type: string
+                    description: The template itself.
+    CreateExchangeRequest:
       type: object
+      description: Object containing information about the exchange to be created.
       properties:
+        exchangeInformation:
+          type: object
+          properties:
+            ttl:
+              type: string
+              description: Time to live for the exchange (ms).
+            variables:
+              type: array
+              description: Template variables to be used in the exchange.
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    description: The type of template.
+                  template:
+                    type: string
+                    description: The template itself.
+    CreateExchangeResponse:
+      type: object
+      additionalProperties: false
+      description: Object containing information about a created exchange.
+      properties:
+        exchangeId:
+          type: string
+          description: The URL that uniquely identifies the exchange.
+        sequence:
+          type: string
+          description: A sequence number for the exchange. Set to "0" on creation.
+        ttl:
+          type: string
+          description: The time to live for the created exchange.
+        variables:
+          type: array
+          description: Template variables to be used in the exchange.
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: The type of template.
+              template:
+                type: string
+                description: The template itself.
+        state:
+          type: string
+          description: >-
+            The status ("pending" | "complete" | "invalid") of the exchange, set
+            to "pending" on creation.
+        step:
+          type: string
+          description: The semantic string ID for the current step.
+    ExchangeParticipationResponse:
+      type: object
+      description: Either what the exchange is expecting next or a result of the exchange.
+      oneOf:
+        - type: object
+          properties:
+            verifiablePresentationRequest:
+              $ref: '#/components/schemas/VerifiablePresentationRequest'
+        - type: object
+          properties:
+            verifiablePresentation:
+              $ref: '#/components/schemas/VerifiablePresentation'
+        - type: object
+          properties:
+            redirectUrl:
+              type: string
+              description: The URL the exchange wishes to redirect the client to.
+    GetExchangeResponse:
+      type: object
+      additionalProperties: false
+      description: Object containing information about an active exchange.
+      properties:
+        exchangeId:
+          type: string
+          description: The URL that uniquely identifies the exchange.
+        ttl:
+          type: string
+          description: The time to live for the exchange.
+        nextStep:
+          type: string
+          description: The interaction the exchange is expecting to happen next.
+        completedSteps:
+          type: array
+          description: The steps completed by the exchange previously.
+          items:
+            type: string
+    WorkflowStep:
+      type: object
+      description: Object containing information about a workflow step.
+      oneOf:
+        - $ref: '#/components/schemas/StepData'
+        - type: object
+          properties:
+            stepTemplate:
+              $ref: '#/components/schemas/StepTemplate'
+    StepTemplate:
+      type: object
+      additionalProperties: false
+      description: >-
+        A template for a workflow step. Either this must be present or the other
+        step data must be present, but not both sets.
+      properties:
+        type:
+          type: string
+          description: The type of template.
+        template:
+          type: string
+          description: The step template.
+    StepData:
+      type: object
+      additionalProperties: false
+      description: Step data to be included if a template is not used.
+      properties:
+        createChallenge:
+          type: string
+          description: >-
+            An optional step directive that tells the exchange to handle
+            challenge management via a VC API verifier service it has a zcap
+            for.
         verifiablePresentationRequest:
           $ref: '#/components/schemas/VerifiablePresentationRequest'
-    VerifiablePresentationBody:
+        nextStep:
+          type: string
+          description: The name of the next step in the sequence.
+        openId:
+          type: object
+          description: Optional information to trigger OID4VP
+          properties:
+            createAuthorizationRequest:
+              type: string
+              description: >-
+                If present, auto-generate the OID4VP authorization request from
+                the VPR. Either this or authorizationRequest must be present,
+                but not both.
+            authorizationRequest:
+              type: object
+    VerifiablePresentationRequest:
       type: object
+      description: A Verifiable Presentation Request.
       properties:
-        verifiablePresentation:
-          $ref: '#/components/schemas/VerifiablePresentation'
+        query:
+          type: array
+          description: A set of one or more queries sent by the requester.
+          items:
+            type: object
+            properties:
+              type:
+                type: array
+                description: The type of the query.
+                items:
+                  type: string
+        challenge:
+          type: string
+          description: >-
+            A challenge, intended to prevent replay attacks, provided by the
+            requester that is typically expected to be included in the
+            Verifiable Presentation response.
+        domain:
+          type: string
+          description: >-
+            A domain, intended to prevent replay attacks, provided by the
+            requester that is typically expected to be included in the
+            Verifiable Presentation response.
+          items:
+            type: string
+        interact:
+          type: array
+          description: A list of interaction mechanisms that are supported by the server.
+          items:
+            type: object
+            properties:
+              service:
+                type: object
+                description: >-
+                  A service that is supported by the server that is capable of
+                  receiving a response to the Verifiable Presentation Request.
+                properties:
+                  type:
+                    type: array
+                    description: The type of the service.
+                    items:
+                      type: string
+                  serviceEndpoint:
+                    type: string
+                    description: >-
+                      A URL that can be utilized for interacting with the
+                      service for the purposes of responding to the Verifiable
+                      Presentation Request.
+      example:
+        query:
+          - type: DIDAuthentication
+          - type: QueryByExample
+            credentialQuery:
+              reason: We need to see your existing University Degree credential.
+              example:
+                '@context':
+                  - https://www.w3.org/2018/credentials/v1
+                  - https://www.w3.org/2018/credentials/examples/v1
+                type: UniversityDegreeCredential
+        challenge: 3182bdea-63d9-11ea-b6de-3b7c1404d57f
+        domain: edu.example
+        interact:
+          service:
+            - type: UnmediatedPresentationService2021
+              serviceEndpoint: https://edu.example/workflows/123456/presentations
     Issuer:
       type: object
       description: A JSON-LD Verifiable Credential Issuer.
@@ -915,21 +1338,6 @@ components:
           proofPurpose: assertionMethod
           jws: >-
             eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
-    DeriveCredentialOptions:
-      type: object
-      additionalProperties: false
-      description: Options for specifying how the derived credential is created.
-      properties:
-        selectivePointers:
-          type: array
-          description: >-
-            An array of JSON pointers specifying the selectively disclosed
-            information.
-          items:
-            type: string
-      example:
-        selectivePointers:
-          - /credentialSubject/birthCountry
     Presentation:
       type: object
       description: A JSON-LD Verifiable Presentation without a proof.
@@ -1030,6 +1438,97 @@ components:
           proofPurpose: assertionMethod
           jws: >-
             eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+    DeriveCredentialRequest:
+      type: object
+      properties:
+        verifiableCredential:
+          $ref: '#/components/schemas/VerifiableCredential'
+        options:
+          $ref: '#/components/schemas/DeriveCredentialOptions'
+    DeriveCredentialResponse:
+      $ref: '#/components/schemas/VerifiableCredential'
+    CreatePresentationRequest:
+      type: object
+      properties:
+        presentation:
+          $ref: '#/components/schemas/Presentation'
+        options:
+          $ref: '#/components/schemas/PresentCredentialOptions'
+    CreatePresentationResponse:
+      type: object
+      properties:
+        verifiablePresentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
+    NotifyPresentationAvailableRequest:
+      type: object
+      properties:
+        query:
+          type: object
+          description: See https://w3c-ccg.github.io/vp-request-spec/#format
+          properties:
+            type:
+              type: string
+              description: The type of query the server should reply with.
+            credentialQuery:
+              type: object
+              description: Details of the client's available presentation
+      example:
+        query:
+          - type: RequestQueryByFrame
+            credentialQuery:
+              - type:
+                  - VerifiableCredential
+                  - CommercialInvoiceCertificate
+                reason: Wallet XYZ is ready to selectively disclose new credentials.
+    ErrorResponse:
+      type: object
+      description: A response that denotes that an error has occurred.
+      properties:
+        id:
+          type: string
+          pattern: '[a-z0-9\-]{8,}'
+          description: An error id.
+        message:
+          type: string
+          minLength: 10
+          maxLength: 100
+          description: The error message.
+        details:
+          type: object
+          description: An object with error details.
+      required:
+        - id
+        - message
+      example:
+        id: invalid-json
+        message: The provided JSON data was malformed.
+    StorePresentationRequest:
+      $ref: '#/components/schemas/VerifiablePresentation'
+    VerifiablePresentationRequestBody:
+      type: object
+      properties:
+        verifiablePresentationRequest:
+          $ref: '#/components/schemas/VerifiablePresentationRequest'
+    VerifiablePresentationBody:
+      type: object
+      properties:
+        verifiablePresentation:
+          $ref: '#/components/schemas/VerifiablePresentation'
+    DeriveCredentialOptions:
+      type: object
+      additionalProperties: false
+      description: Options for specifying how the derived credential is created.
+      properties:
+        selectivePointers:
+          type: array
+          description: >-
+            An array of JSON pointers specifying the selectively disclosed
+            information.
+          items:
+            type: string
+      example:
+        selectivePointers:
+          - /credentialSubject/birthCountry
     PresentCredentialOptions:
       type: object
       additionalProperties: false
@@ -1070,75 +1569,6 @@ components:
         created: '2020-04-02T18:48:36Z'
         domain: example.com
         challenge: d436f0c8-fbd9-4e48-bbb2-55fc5d0920a8
-    VerifiablePresentationRequest:
-      type: object
-      description: A Verifiable Presentation Request.
-      properties:
-        query:
-          type: array
-          description: A set of one or more queries sent by the requester.
-          items:
-            type: object
-            properties:
-              type:
-                type: array
-                description: The type of the query.
-                items:
-                  type: string
-        challenge:
-          type: string
-          description: >-
-            A challenge, intended to prevent replay attacks, provided by the
-            requester that is typically expected to be included in the
-            Verifiable Presentation response.
-        domain:
-          type: string
-          description: >-
-            A domain, intended to prevent replay attacks, provided by the
-            requester that is typically expected to be included in the
-            Verifiable Presentation response.
-          items:
-            type: string
-        interact:
-          type: array
-          description: A list of interaction mechanisms that are supported by the server.
-          items:
-            type: object
-            properties:
-              service:
-                type: object
-                description: >-
-                  A service that is supported by the server that is capable of
-                  receiving a response to the Verifiable Presentation Request.
-                properties:
-                  type:
-                    type: array
-                    description: The type of the service.
-                    items:
-                      type: string
-                  serviceEndpoint:
-                    type: string
-                    description: >-
-                      A URL that can be utilized for interacting with the
-                      service for the purposes of responding to the Verifiable
-                      Presentation Request.
-      example:
-        query:
-          - type: DIDAuthentication
-          - type: QueryByExample
-            credentialQuery:
-              reason: We need to see your existing University Degree credential.
-              example:
-                '@context':
-                  - https://www.w3.org/2018/credentials/v1
-                  - https://www.w3.org/2018/credentials/examples/v1
-                type: UniversityDegreeCredential
-        challenge: 3182bdea-63d9-11ea-b6de-3b7c1404d57f
-        domain: edu.example
-        interact:
-          service:
-            - type: UnmediatedPresentationService2021
-              serviceEndpoint: https://edu.example/workflows/123456/presentations
     IssueCredentialRequest:
       type: object
       properties:
@@ -1416,6 +1846,22 @@ components:
           type: string
           description: The challenge value
   parameters:
+    LocalWorkflowId:
+      name: localWorkflowId
+      description: A local identifier for a workflow instance.
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '[a-z0-9][a-z0-9\-]{2,}'
+    LocalExchangeId:
+      name: localExchangeId
+      description: A local identifier for an exchange instance.
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '[a-z0-9][a-z0-9\-]{2,}'
     ObjectId:
       in: path
       name: id
@@ -1458,6 +1904,9 @@ components:
         - z4Z1T4HdLdfXCFAhdhzdCqm
         - u7m8_ybOArX-EWeADqWCsIw
 x-tagGroups:
+  - name: VC Exchanges and Workflows API
+    tags:
+      - exchanges_Credentials
   - name: VC Holder API
     tags:
       - holder_Credentials
