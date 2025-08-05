@@ -33,8 +33,7 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/Credential'
-                  - $ref: '#/components/schemas/VerifiableCredential'
+                  - $ref: '#/components/schemas/VerifiableCredentialResponse'
         '400':
           description: Bad Request
         '401':
@@ -45,10 +44,6 @@ paths:
           description: Gone! There is no data here
         '418':
           description: I'm a teapot - MUST not be returned outside of pre-arranged scenarios between both parties
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
     delete:
       tags:
         - Credentials
@@ -57,7 +52,9 @@ paths:
         - oAuth2: []
         - zCap: []
       summary: Deletes a credential or verifiable credential by ID. To delete a credential that does not have credential.id set but has an associated credentialId value, pass credentialId instead.
-      x-expectedCaller: Issuer Coordinator
+      x-expectedCaller:
+        - Issuer Coordinator
+        - Holder Coordinator
       operationId: deleteCredential
       parameters:
         - $ref: '#/components/parameters/ObjectId'
@@ -72,51 +69,6 @@ paths:
           description: Credential not found
         '410':
           description: Gone! There is no data here
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
-  /credentials:
-    get:
-      tags:
-        - Credentials
-      security:
-        - networkAuth: []
-        - oAuth2: []
-        - zCap: []
-      summary: Gets list of credentials or verifiable credentials
-      operationId: getCredentials
-      x-expectedCaller: Holder Coordinator or Issuer Coordinator
-      parameters:
-        - in: query
-          name: type
-          schema:
-            type: array
-            items:
-              type: string
-              pattern: (credentials|verifiablecredentials|all)
-      responses:
-        '200':
-          description: Credentials retrieved
-          content:
-            application/json:
-              schema:
-                type: array
-                description: The Credentials
-                items:
-                  anyOf:
-                    - $ref: '#/components/schemas/VerifiableCredential'
-                    - $ref: '#/components/schemas/Credential'
-        '400':
-          description: Bad Request
-        '401':
-          description: Not Authorized
-        '410':
-          description: Gone! There is no data here
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
   /credentials/derive:
     post:
       tags:
@@ -144,10 +96,6 @@ paths:
                 $ref: '#/components/schemas/VerifiableCredential'
         '400':
           description: Invalid Request
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
   /presentations/{id}:
     get:
       tags:
@@ -178,10 +126,6 @@ paths:
           description: Presentation not found
         '410':
           description: Gone! There is no data here
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
     delete:
       tags:
         - Presentations
@@ -205,10 +149,6 @@ paths:
           description: Presentation not found
         '410':
           description: Gone! There is no data here
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
   /presentations:
     get:
       tags:
@@ -246,10 +186,6 @@ paths:
           description: Not Authorized
         '410':
           description: Gone! There is no data here
-        '500':
-          description: Internal Error
-        '501':
-          description: Not Implemented
     post:
       summary: Creates a presentation and returns it in the response body.
       tags:
@@ -276,8 +212,6 @@ paths:
                 $ref: '#/components/schemas/CreatePresentationResponse'
         '400':
           description: invalid input!
-        '500':
-          description: error!
   /exchanges:
     get:
       summary: Provides a discovery endpoint for the exchanges supported by this server endpoint.
@@ -361,8 +295,6 @@ paths:
                   next: '3'
         '400':
           description: invalid input
-        '500':
-          description: error
   /exchanges/{exchange-id}:
     post:
       summary: Initiates an exchange of information.
@@ -398,52 +330,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error.
-        '501':
-          description: Service not implemented.
-  /exchanges/{exchange-id}/{transaction-id}:
-    post:
-      summary: Receives information related to an existing exchange.
-      tags:
-        - Exchanges
-      security:
-        - networkAuth: []
-        - oAuth2: []
-        - zCap: []
-        - didAuth: []
-      operationId: receiveExchangeData
-      description: A client can use this endpoint to continue the exchange of information associated with an initiated exchange by sending a Verifiable Presentation with information requested by the server to this endpoint.
-      parameters:
-        - $ref: '#/components/parameters/ExchangeId'
-        - $ref: '#/components/parameters/TransactionId'
-      requestBody:
-        description: A Verifiable Presentation.
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VerifiablePresentationBody'
-      responses:
-        '200':
-          description: Received data was accepted.
-          content:
-            application/json:
-              schema:
-                anyOf:
-                  - $ref: '#/components/schemas/VerifiablePresentationBody'
-                  - $ref: '#/components/schemas/VerifiablePresentationRequestBody'
-        '400':
-          description: Received data is malformed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: The associated exchange or transaction was not found.
-        '500':
-          description: Internal server error.
-        '501':
-          description: Service not implemented.
 components:
   securitySchemes:
     networkAuth:
@@ -483,7 +369,11 @@ components:
       type: object
       properties:
         verifiablePresentation:
-          $ref: '#/components/schemas/VerifiablePresentation'
+          type: object
+          description: A JSON-LD Verifiable Presentation with a proof.
+          oneOf:
+            - $ref: '#/components/schemas/VerifiablePresentation'
+            - $ref: '#/components/schemas/EnvelopedVerifiablePresentation'
     NotifyPresentationAvailableRequest:
       type: object
       properties:
@@ -581,14 +471,14 @@ components:
           description: The subject
       example:
         '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
         id: http://example.gov/credentials/3732
         type:
           - VerifiableCredential
           - UniversityDegreeCredential
         issuer: did:example:123
-        issuanceDate: '2020-03-16T22:37:26.544Z'
+        validFrom: '2020-03-16T22:37:26.544Z'
         credentialSubject:
           id: did:example:123
           degree:
@@ -607,12 +497,6 @@ components:
         created:
           type: string
           description: Date the proof was created.
-        challenge:
-          type: string
-          description: A value chosen by the verifier to mitigate authentication proof replay attacks.
-        domain:
-          type: string
-          description: The domain of the proof to restrict its use to a particular target.
         nonce:
           type: string
           description: A value chosen by the creator of a proof to randomize proof values for privacy purposes.
@@ -643,25 +527,55 @@ components:
               $ref: '#/components/schemas/DataIntegrityProof'
       example:
         '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
         id: http://example.gov/credentials/3732
         type:
           - VerifiableCredential
           - UniversityDegreeCredential
         issuer: did:example:123
-        issuanceDate: '2020-03-16T22:37:26.544Z'
+        validFrom: '2020-03-16T22:37:26.544Z'
         credentialSubject:
           id: did:example:123
           degree:
             type: BachelorDegree
             name: Bachelor of Science and Arts
         proof:
-          type: Ed25519Signature2018
+          type: DataIntegrityProof
+          cryptosuite: ecdsa-rdfc-2019
           created: '2020-04-02T18:28:08Z'
           verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
           proofPurpose: assertionMethod
-          jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+          proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
+    EnvelopedVerifiableCredential:
+      type: object
+      description: An object used to associate an enveloped verifiable credential with the verifiableCredential property in a verifiable presentation.
+      properties:
+        '@context':
+          type: array
+          description: The JSON-LD context of the enveloped verifiable credential.
+          items:
+            type: string
+        id:
+          type: string
+          description: This MUST be a "data:" scheme URL [RFC2397] that expresses a secured verifiable credential using an enveloping security scheme.
+        type:
+          type: string
+          description: This MUST be EnvelopedVerifiableCredential.
+      example:
+        '@context': https://www.w3.org/ns/credentials/v2
+        id: data:application/vc+sd-jwt;QzVjV...RMjU
+        type: EnvelopedVerifiableCredential
+    VerifiableCredentialResponse:
+      type: object
+      description: The format returned from a successful request for a verifiable credential.
+      properties:
+        verifiableCredential:
+          type: object
+          description: A JSON-LD Verifiable Credential with a proof.
+          oneOf:
+            - $ref: '#/components/schemas/VerifiableCredential'
+            - $ref: '#/components/schemas/EnvelopedVerifiableCredential'
     DeriveCredentialOptions:
       type: object
       additionalProperties: false
@@ -703,31 +617,72 @@ components:
             $ref: '#/components/schemas/VerifiableCredential'
       example:
         '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
         holder: did:example:123
         type: VerifiablePresentation
         verifiableCredential:
           - '@context':
-              - https://www.w3.org/2018/credentials/v1
-              - https://www.w3.org/2018/credentials/examples/v1
+              - https://www.w3.org/ns/credentials/v2
+              - https://www.w3.org/ns/credentials/examples/v2
           - id: http://example.gov/credentials/3732
           - type:
               - VerifiableCredential
               - UniversityDegreeCredential
           - issuer: did:example:123
-          - issuanceDate: '2020-03-16T22:37:26.544Z'
+          - validFrom: '2020-03-16T22:37:26.544Z'
           - credentialSubject:
               id: did:example:123
               degree:
                 type: BachelorDegree
                 name: Bachelor of Science and Arts
           - proof:
-              type: Ed25519Signature2018
+              type: DataIntegrityProof
+              cryptosuite: ecdsa-rdfc-2019
               created: '2020-04-02T18:28:08Z'
               verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
               proofPurpose: assertionMethod
-              jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+              proofValue: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+    DataIntegrityProofWithChallenge:
+      type: object
+      description: A Data Integrity Proof that includes a challenge and a domain as defined by the W3C VC Data Integrity specification.
+      properties:
+        type:
+          type: string
+          description: Data Integrity Proof type.
+        cryptosuite:
+          type: string
+          description: The name of the cryptographic suite.
+        created:
+          type: string
+          description: Date the proof was created.
+        challenge:
+          type: string
+          description: A value chosen by the verifier to mitigate authentication proof replay attacks.
+        domain:
+          type: string
+          description: The domain of the proof to restrict its use to a particular target.
+        nonce:
+          type: string
+          description: A value chosen by the creator of a proof to randomize proof values for privacy purposes.
+        verificationMethod:
+          type: string
+          description: Verification Method used to verify proof.
+        proofPurpose:
+          type: string
+          description: The purpose of the proof to be used with verificationMethod.
+        proofValue:
+          type: string
+          description: Value of the Linked Data proof.
+      example:
+        type: DataIntegrityProof
+        cryptosuite: ecdsa-rdfc-2019
+        created: '2024-01-11T19:14:04Z'
+        domain: domain.example
+        challenge: ce2e12b0-35a0-11f0-85df-7bcb79038e44
+        verificationMethod: https://di.example/holder#zDnadqAtcdP6agfXsTWu5darHnbGyTDkKGFYmn8dQraYzCJMZ
+        proofPurpose: authentication
+        proofValue: zXb23ZkdakfJNUhiTEdwyE598X7RLrkjnXEADLQZ7vZyUGXX8cyJZRBkNw813SGsJHWrcpo4Y8hRJ7adYn35Eetq
     VerifiablePresentation:
       type: object
       description: A JSON-LD Verifiable Presentation with a proof.
@@ -736,40 +691,42 @@ components:
         - type: object
           properties:
             proof:
-              $ref: '#/components/schemas/DataIntegrityProof'
+              $ref: '#/components/schemas/DataIntegrityProofWithChallenge'
       example:
         '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
         holder: did:example:123
         type: VerifiablePresentation
         verifiableCredential:
           - '@context':
-              - https://www.w3.org/2018/credentials/v1
-              - https://www.w3.org/2018/credentials/examples/v1
+              - https://www.w3.org/ns/credentials/v2
+              - https://www.w3.org/ns/credentials/examples/v2
           - id: http://example.gov/credentials/3732
           - type:
               - VerifiableCredential
               - UniversityDegreeCredential
           - issuer: did:example:123
-          - issuanceDate: '2020-03-16T22:37:26.544Z'
+          - validFrom: '2020-03-16T22:37:26.544Z'
           - credentialSubject:
               id: did:example:123
               degree:
                 type: BachelorDegree
                 name: Bachelor of Science and Arts
           - proof:
-              type: Ed25519Signature2018
+              type: DataIntegrityProof
+              cryptosuite: eddsa-rdfc-2022
               created: '2020-04-02T18:28:08Z'
               verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
               proofPurpose: assertionMethod
-              jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+              proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
         proof:
-          type: Ed25519Signature2018
+          type: DataIntegrityProof
+          cryptosuite: ecdsa-rdfc-2019
           created: '2020-04-02T18:28:08Z'
           verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
           proofPurpose: assertionMethod
-          jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+          proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
     PresentCredentialOptions:
       type: object
       additionalProperties: false
@@ -777,7 +734,10 @@ components:
       properties:
         type:
           type: string
-          description: The type of the proof. Default is an appropriate proof type corresponding to the verification method.
+          description: The type of the proof. Default 'DataIntegrityProof'.
+        cryptosuite:
+          type: string
+          description: The cryptosuite of the proof.
         verificationMethod:
           type: string
           description: The URI of the verificationMethod used for the proof. If omitted, a default verification method will be used.
@@ -794,12 +754,32 @@ components:
           type: string
           description: The intended domain of validity for the proof. For example website.example
       example:
-        type: Ed25519Signature2018
+        type: DataIntegrityProof
+        cryptosuite: ecdsa-rdfc-2019
         verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
         proofPurpose: assertionMethod
         created: '2020-04-02T18:48:36Z'
         domain: example.com
         challenge: d436f0c8-fbd9-4e48-bbb2-55fc5d0920a8
+    EnvelopedVerifiablePresentation:
+      type: object
+      description: An object used to express an enveloped verifiable presentation.
+      properties:
+        '@context':
+          type: array
+          description: The JSON-LD context of the enveloped verifiable presentation.
+          items:
+            type: string
+        id:
+          type: string
+          description: This MUST be a "data:" scheme URL [RFC2397] that expresses a secured verifiable presentation using an enveloping security scheme.
+        type:
+          type: string
+          description: This MUST be EnvelopedVerifiablePresentation.
+      example:
+        '@context': https://www.w3.org/ns/credentials/v2
+        id: data:application/vp+jwt,eyJraWQiO...zhwGfQ
+        type: EnvelopedVerifiablePresentation
     VerifiablePresentationRequest:
       type: object
       description: A Verifiable Presentation Request.
@@ -884,19 +864,3 @@ components:
         type: string
         minimum: 3
         pattern: '[a-z0-9][a-z0-9\-]{2,}'
-    TransactionId:
-      in: path
-      name: transaction-id
-      required: true
-      schema:
-        anyOf:
-          - type: string
-            pattern: "[0-9a-f]{8}\b-[0-9a-f]{4}\b-[0-9a-f]{4}\b-[0-9a-f]{4}\b-[0-9a-f]{12}"
-          - type: string
-            pattern: z[1-9A-HJ-NP-Za-km-z]{21,22}
-          - type: string
-            pattern: u[a-zA-Z0-9_-]{22,23}
-      example:
-        - f37e5114-8b4a-11ec-b32e-fbd62b9502c1
-        - z4Z1T4HdLdfXCFAhdhzdCqm
-        - u7m8_ybOArX-EWeADqWCsIw

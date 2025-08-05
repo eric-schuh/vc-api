@@ -15,7 +15,7 @@ servers:
 paths:
   /workflows:
     post:
-      summary: Creates a new workflow and returns its information in the response body.
+      summary: Creates a new workflow and returns location of workflow metadata in a response header.
       tags:
         - Credentials
       security:
@@ -23,7 +23,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: createWorkflow
-      description: Creates a new workflow and returns workflowId in the response body.
+      description: Creates a new workflow and returns location of workflow metadata in a response header.
       x-expectedCaller: Administrators
       requestBody:
         content:
@@ -31,12 +31,24 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateWorkflowRequest'
       responses:
-        '200':
-          description: Workflow successfully created!
-          content:
-            application/json:
+        '201':
+          description: Workflow successfully created (with data)
+          headers:
+            Location:
               schema:
-                $ref: '#/components/schemas/CreateWorkflowResponse'
+                type: string
+                format: uri
+                description: The HTTP URL used to retrieve workflow metadata.
+                example: https://issuer.example.com/workflows/123
+        '204':
+          description: Workflow successfully created (without data)
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                description: The HTTP URL used to retrieve workflow metadata.
+                example: https://issuer.example.com/workflows/123
         '400':
           description: Invalid input
         '401':
@@ -72,7 +84,7 @@ paths:
           description: Internal Error
   /workflows/{localWorkflowId}/exchanges:
     post:
-      summary: Creates a new exchange and returns exchangeId and time to live in the response body.
+      summary: Creates a new exchange and returns location of exchange metadata in a response header.
       tags:
         - Credentials
       security:
@@ -80,7 +92,7 @@ paths:
         - oAuth2: []
         - zCap: []
       operationId: createExchange
-      description: Creates a new exchange and returns exchangeId and time to live in the response body.
+      description: Creates a new exchange and returns location of exchange metadata in a response header.
       x-expectedCaller: Owner Coordinator
       parameters:
         - $ref: '#/components/parameters/LocalWorkflowId'
@@ -90,12 +102,24 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateExchangeRequest'
       responses:
-        '200':
-          description: Exchange successfully created!
-          content:
-            application/json:
+        '201':
+          description: Exchange successfully created (with data)
+          headers:
+            Location:
               schema:
-                $ref: '#/components/schemas/CreateExchangeResponse'
+                type: string
+                format: uri
+                description: The HTTP URL used to retrieve exchange metadata.
+                example: https://issuer.example.com/workflows/123/exchanges/abc
+        '204':
+          description: Exchange successfully created (without data)
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                description: The HTTP URL used to retrieve exchange metadata.
+                example: https://issuer.example.com/workflows/123/exchanges/abc
         '400':
           description: Invalid input
         '401':
@@ -131,7 +155,7 @@ paths:
         '500':
           description: Internal Error
     post:
-      summary: Participate in an exchange. Posting an empty body will start the exchange or return what the exchange is expecting to complete the next step.
+      summary: Participate in an exchange. Posting an empty body will start the exchange or return what the exchange is expecting to complete the next step. Posting a Verifiable Presentation Request will result in either a 4xx error or one of the following - a Verifiable Presentation or Verifiable Presentation Request that conforms to the client's request. If a Verifiable Presentation is sent, an additional Verifiable Presentation Request may also be sent to continue the exchange.
       tags:
         - Credentials
       security:
@@ -148,9 +172,15 @@ paths:
         content:
           application/json:
             schema:
-              properties:
-                verifiablePresentation:
-                  $ref: '#/components/schemas/VerifiablePresentation'
+              oneOf:
+                - type: object
+                  properties:
+                    verifiablePresentationRequest:
+                      $ref: '#/components/schemas/VerifiablePresentationRequest'
+                - type: object
+                  properties:
+                    verifiablePresentation:
+                      $ref: '#/components/schemas/VerifiablePresentation'
       responses:
         '200':
           description: Exchange progressed.
@@ -158,6 +188,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExchangeParticipationResponse'
+        '400':
+          description: Invalid input
+        '401':
+          description: Not Authorized
+        '500':
+          description: Internal Error
+  /workflows/{localWorkflowId}/exchanges/{localExchangeId}/protocols:
+    get:
+      summary: Gets the supported protocols for interacting with a specific exchange.
+      tags:
+        - Exchanges
+      security:
+        - networkAuth: []
+        - oAuth2: []
+        - zCap: []
+      operationId: getSupportedProtocolsConfiguration
+      description: Gets the supported protocols for interacting with a specific exchange.
+      x-expectedCaller:
+        - Verification Coordinator
+        - Holder Coordinator
+      parameters:
+        - $ref: '#/components/parameters/LocalWorkflowId'
+        - $ref: '#/components/parameters/LocalExchangeId'
+      responses:
+        '200':
+          description: Protocols understood by the exchange.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetExchangeProtocolsResponse'
         '400':
           description: Invalid input
         '401':
@@ -188,140 +248,29 @@ components:
       additionalProperties: false
       description: Object containing information for creating a workflow.
       properties:
-        workflowData:
-          type: object
-          additionalProperties: false
-          description: Object containing information for creating a workflow.
-          properties:
-            steps:
-              type: object
-              description: One or more steps required to complete an exchange on the workflow. Passing the steps object is REQUIRED.
-              properties:
-                stepName:
-                  type: object
-                  description: The name of the step.
-                  properties:
-                    step:
-                      $ref: '#/components/schemas/WorkflowStep'
-            initialStep:
-              type: string
-              description: The step from the above set that the exchange starts on. Passing intialStep is REQUIRED.
-            controller:
-              type: string
-              description: The controller of the instance. Passing controller is OPTIONAL.
-            authorization:
-              type: string
-              description: Authorization scheme information (e.g., OAuth2 configuration). Passing authorization is OPTIONAL.
-            credentialTemplates:
-              type: array
-              description: One or more VC templates for issuance. Passing credentialTemplates is OPTIONAL.
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                  template:
-                    type: string
-            workflowId:
-              type: string
-              description: the ID that will be used for the created workflow. workflowId is OPTIONAL.
-    CreateWorkflowResponse:
-      type: object
-      additionalProperties: false
-      description: Object containing information about a created workflow.
-      properties:
-        workflowId:
+        id:
           type: string
-          description: The URL that uniquely identifies the created workflow.
-    GetWorkflowResponse:
-      type: object
-      additionalProperties: false
-      description: Object containing information about a workflow.
-      properties:
-        workflowData:
+          description: The ID that will be used for the created workflow. Passing an ID is OPTIONAL.
+        initialStep:
+          type: string
+          description: The step from the above set that the exchange starts on. Passing intialStep is REQUIRED.
+        controller:
+          type: string
+          description: The controller of the instance. Passing controller is OPTIONAL.
+        authorization:
           type: object
-          additionalProperties: false
-          description: Object containing information about a created workflow.
+          description: Authorization scheme information (e.g., OAuth2 configuration). Passing authorization is OPTIONAL.
           properties:
-            stepInformation:
+            oauth2:
               type: object
-              description: Information about the steps required for the workflow. Returning stepInformation is REQUIRED.
+              description: OAuth2 configuration.
               properties:
-                exchanges:
-                  type: array
-                  description: The identifiers of the current exchanges associated with the workflow instance.
-                  items:
-                    type: string
-                steps:
-                  type: object
-                  description: One or more steps required to complete an exchange on the workflow.
-                  properties:
-                    stepName:
-                      type: object
-                      description: The name of the step.
-                      properties:
-                        step:
-                          $ref: '#/components/schemas/WorkflowStep'
-                initialStep:
+                issuerConfigUrl:
                   type: string
-                  description: The step from the above set that the exchange starts on.
-            controller:
-              type: string
-              description: The controller of the instance. Returning controller is OPTIONAL.
-            authorization:
-              type: object
-              description: Authorization scheme information (e.g., OAuth2 configuration). Returning authorization is OPTIONAL.
-            credentialTemplates:
-              type: array
-              description: One or more VC templates for issuance. Returning credentialTemplates is OPTIONAL.
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                    description: The type of template.
-                  template:
-                    type: string
-                    description: The template itself.
-    CreateExchangeRequest:
-      type: object
-      description: Object containing information about the exchange to be created.
-      properties:
-        exchangeInformation:
-          type: object
-          properties:
-            ttl:
-              type: string
-              description: Time to live for the exchange (ms).
-            variables:
-              type: array
-              description: Template variables to be used in the exchange.
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                    description: The type of template.
-                  template:
-                    type: string
-                    description: The template itself.
-    CreateExchangeResponse:
-      type: object
-      additionalProperties: false
-      description: Object containing information about a created exchange.
-      properties:
-        exchangeId:
-          type: string
-          description: The URL that uniquely identifies the exchange.
-        sequence:
-          type: string
-          description: A sequence number for the exchange. Set to "0" on creation.
-        ttl:
-          type: string
-          description: The time to live for the created exchange.
-        variables:
+                  description: OAuth2 issuer config URL.
+        credentialTemplates:
           type: array
-          description: Template variables to be used in the exchange.
+          description: One or more VC templates for issuance. Passing credentialTemplates is OPTIONAL.
           items:
             type: object
             properties:
@@ -331,12 +280,68 @@ components:
               template:
                 type: string
                 description: The template itself.
-        state:
+        steps:
+          type: object
+          description: One or more steps required to complete an exchange on the workflow. Passing the steps object is REQUIRED. The keys are one or more step names, where each STEP_NAME is replaced by the name of a step (such as <code>request-employee-id</code>), and the values are step configurations.
+          properties:
+            STEP_NAME:
+              $ref: '#/components/schemas/WorkflowStep'
+    GetWorkflowResponse:
+      type: object
+      additionalProperties: false
+      description: Object containing information about a workflow.
+      properties:
+        id:
           type: string
-          description: The status ("pending" | "complete" | "invalid") of the exchange, set to "pending" on creation.
-        step:
+          description: The ID that will be used for the created workflow. Passing an ID is OPTIONAL.
+        initialStep:
           type: string
-          description: The semantic string ID for the current step.
+          description: The step from the above set that the exchange starts on. Passing intialStep is REQUIRED.
+        controller:
+          type: string
+          description: The controller of the instance. Passing controller is OPTIONAL.
+        authorization:
+          type: object
+          description: Authorization scheme information (e.g., OAuth2 configuration). Passing authorization is OPTIONAL.
+          properties:
+            oauth2:
+              type: object
+              description: OAuth2 configuration.
+              properties:
+                issuerConfigUrl:
+                  type: string
+                  description: OAuth2 issuer config URL.
+        credentialTemplates:
+          type: array
+          description: One or more VC templates for issuance. Passing credentialTemplates is OPTIONAL.
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: The type of template.
+              template:
+                type: string
+                description: The template itself.
+        steps:
+          type: object
+          description: One or more steps required to complete an exchange on the workflow. The keys are one or more step names, where each STEP_NAME is replaced by the name of a step (such as <code>request-employee-id</code>), and the values are step configurations.
+          properties:
+            STEP_NAME:
+              $ref: '#/components/schemas/WorkflowStep'
+    CreateExchangeRequest:
+      type: object
+      description: Object containing information about the exchange to be created.
+      properties:
+        expires:
+          type: string
+          description: The date and time (expressed as an XML Schema dateTimeStamp) that the exchange expires.
+        variables:
+          type: object
+          description: Template variables to be used in the exchange.
+        openId:
+          type: object
+          description: Optional parameters to enable OID4* protocol for delivery.
     ExchangeParticipationResponse:
       type: object
       description: Either what the exchange is expecting next or a result of the exchange.
@@ -354,25 +359,50 @@ components:
             redirectUrl:
               type: string
               description: The URL the exchange wishes to redirect the client to.
+    GetExchangeProtocolsResponse:
+      type: object
+      additionalProperties: false
+      description: Object containing information about the protocols that can be used to perform a specific exchange.
+      properties:
+        protocols:
+          type: object
+          description: An object containing one or more protocols that can be used to perform the specific exchange.
+          properties:
+            interact:
+              type: string
+              description: A URL that can be used during exchange flows with a human in the loop. See the section on the <a href="#dfn-interaction-url">interact URL format</a> for more details.
+            vcapi:
+              type: string
+              description: The URL to use when initiating a VC API exchange.
+            OID4VP:
+              type: string
+              description: The URL to use when initiating an OID4VP presentation.
+            OID4VCI:
+              type: string
+              description: The URL to use when initiating an OID4VCI issuance.
     GetExchangeResponse:
       type: object
       additionalProperties: false
       description: Object containing information about an active exchange.
       properties:
-        exchangeId:
+        id:
           type: string
-          description: The URL that uniquely identifies the exchange.
-        ttl:
+          description: The local exchange ID that identifies the exchange.
+        sequence:
+          type: integer
+          description: A sequence number for the exchange. Set to 0 on creation.
+        expires:
           type: string
-          description: The time to live for the exchange.
-        nextStep:
+          description: The date and time (expressed as an XML Schema dateTimeStamp) that the exchange expires.
+        step:
           type: string
-          description: The interaction the exchange is expecting to happen next.
-        completedSteps:
-          type: array
-          description: The steps completed by the exchange previously.
-          items:
-            type: string
+          description: The current step in the exchange.
+        state:
+          type: string
+          description: The status ("pending" | "active" | "complete" | "invalid") of the exchange, set to "pending" on creation.
+        variables:
+          type: object
+          description: Template variables to be used in the exchange.
     WorkflowStep:
       type: object
       description: Object containing information about a workflow step.
@@ -399,22 +429,57 @@ components:
       description: Step data to be included if a template is not used.
       properties:
         createChallenge:
-          type: string
+          type: boolean
           description: An optional step directive that tells the exchange to handle challenge management via a VC API verifier service it has a zcap for.
         verifiablePresentationRequest:
           $ref: '#/components/schemas/VerifiablePresentationRequest'
+        presentationSchema:
+          oneOf:
+            - type: object
+              description: A JSON Schema describing the validation to be performed on the presentation.
+              properties:
+                type:
+                  type: string
+                  description: The value MUST be <code>JsonSchema</code>.
+                jsonSchema:
+                  type: object
+                  description: The JSON Schema object to use when validating the presentation.
+            - type: object
+              description: An alternate presentation schema format to use when validating a presentation in the current step. Additional properties are expected for a specific presentation schema type, but are beyond the scope of this specification.
+              properties:
+                types:
+                  type: string
+                  description: The type of presentation schema mechanism to use when validating the presentation.
+        verifyPresentationResponseSchema:
+          oneOf:
+            - type: object
+              description: A JSON Schema describing the validation to be performed on the result of verifying the presentation.
+              properties:
+                type:
+                  type: string
+                  description: The value MUST be <code>JsonSchema</code>.
+                jsonSchema:
+                  type: object
+                  description: The JSON Schema object to use when validating the result of verifying the presentation.
+            - type: object
+              description: An alternate presentation schema format to use on the result of verifying a presentation in the current step. Additional properties are expected for a specific presentation schema type, but are beyond the scope of this specification.
+              properties:
+                types:
+                  type: string
+                  description: The type of presentation schema mechanism to use when validating the result of verifying the presentation.
         nextStep:
           type: string
-          description: The name of the next step in the sequence.
+          description: The name of the next step in the sequence. Passing nextStep is OPTIONAL. This field MUST NOT be present on the final step configuration.
         openId:
           type: object
           description: Optional information to trigger OID4VP
           properties:
             createAuthorizationRequest:
               type: string
-              description: If present, auto-generate the OID4VP authorization request from the VPR. Either this or authorizationRequest must be present, but not both.
+              description: If present, identifies the name of the template variable (in <code>variables</code> for an <a href="#create-exchange">exchange</a>) that the auto-generated OpenID for Verifiable Presentations Authorization Request will be stored in for subsequent use in the exchange. Either this or <code>authorizationRequest</code> MUST be present, but not both. The value of the named variable can be lazily generated when the Authorization Request is required, i.e., after the client of the exchange chooses to use the OID4VP protocol. This feature allows the Authorization Request to be generated by reusing values, e.g., a Verifiable Presentation Request, that only need to be specified once across multiple protocol offerings.
             authorizationRequest:
               type: object
+              description: If present, an OID4VP Authorization Request for subsequent use in the exchange. Either this or <code>createAuthorizationRequest</code> MUST be present, but not both.
     VerifiablePresentationRequest:
       type: object
       description: A Verifiable Presentation Request.
@@ -515,14 +580,14 @@ components:
           description: The subject
       example:
         '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
         id: http://example.gov/credentials/3732
         type:
           - VerifiableCredential
           - UniversityDegreeCredential
         issuer: did:example:123
-        issuanceDate: '2020-03-16T22:37:26.544Z'
+        validFrom: '2020-03-16T22:37:26.544Z'
         credentialSubject:
           id: did:example:123
           degree:
@@ -531,6 +596,123 @@ components:
     DataIntegrityProof:
       type: object
       description: A Data Integrity Proof as defined by the W3C VC Data Integrity specification.
+      properties:
+        type:
+          type: string
+          description: Data Integrity Proof type.
+        cryptosuite:
+          type: string
+          description: The name of the cryptographic suite.
+        created:
+          type: string
+          description: Date the proof was created.
+        nonce:
+          type: string
+          description: A value chosen by the creator of a proof to randomize proof values for privacy purposes.
+        verificationMethod:
+          type: string
+          description: Verification Method used to verify proof.
+        proofPurpose:
+          type: string
+          description: The purpose of the proof to be used with verificationMethod.
+        proofValue:
+          type: string
+          description: Value of the Linked Data proof.
+      example:
+        type: DataIntegrityProof
+        cryptosuite: ecdsa-rdfc-2019
+        created: '2024-01-11T19:14:04Z'
+        verificationMethod: https://di.example/issuer#zDnaepBuvsQ8cpsWrVKw8fbpGpvPeNSjVPTWoq6cRqaYzBKVP
+        proofPurpose: assertionMethod
+        proofValue: zXb23ZkdakfJNUhiTEdwyE598X7RLrkjnXEADLQZ7vZyUGXX8cyJZRBkNw813SGsJHWrcpo4Y8hRJ7adYn35Eetq
+    VerifiableCredential:
+      type: object
+      description: A JSON-LD Verifiable Credential with a proof.
+      allOf:
+        - $ref: '#/components/schemas/Credential'
+        - type: object
+          properties:
+            proof:
+              $ref: '#/components/schemas/DataIntegrityProof'
+      example:
+        '@context':
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
+        id: http://example.gov/credentials/3732
+        type:
+          - VerifiableCredential
+          - UniversityDegreeCredential
+        issuer: did:example:123
+        validFrom: '2020-03-16T22:37:26.544Z'
+        credentialSubject:
+          id: did:example:123
+          degree:
+            type: BachelorDegree
+            name: Bachelor of Science and Arts
+        proof:
+          type: DataIntegrityProof
+          cryptosuite: ecdsa-rdfc-2019
+          created: '2020-04-02T18:28:08Z'
+          verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
+          proofPurpose: assertionMethod
+          proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
+    Presentation:
+      type: object
+      description: A JSON-LD Verifiable Presentation without a proof.
+      properties:
+        '@context':
+          type: array
+          description: The JSON-LD context of the presentation.
+          items:
+            type: string
+        id:
+          type: string
+          description: The ID of the presentation.
+        type:
+          type: array
+          description: The JSON-LD type of the presentation.
+          items:
+            type: string
+        holder:
+          type: object
+          description: The holder - will be ignored if no proof is present since there is no proof of authority over the credentials
+          nullable: true
+        verifiableCredential:
+          type: array
+          description: The Verifiable Credentials
+          items:
+            $ref: '#/components/schemas/VerifiableCredential'
+      example:
+        '@context':
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
+        holder: did:example:123
+        type: VerifiablePresentation
+        verifiableCredential:
+          - '@context':
+              - https://www.w3.org/ns/credentials/v2
+              - https://www.w3.org/ns/credentials/examples/v2
+          - id: http://example.gov/credentials/3732
+          - type:
+              - VerifiableCredential
+              - UniversityDegreeCredential
+          - issuer: did:example:123
+          - validFrom: '2020-03-16T22:37:26.544Z'
+          - credentialSubject:
+              id: did:example:123
+              degree:
+                type: BachelorDegree
+                name: Bachelor of Science and Arts
+          - proof:
+              type: DataIntegrityProof
+              cryptosuite: ecdsa-rdfc-2019
+              created: '2020-04-02T18:28:08Z'
+              verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
+              proofPurpose: assertionMethod
+              proofValue: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+    DataIntegrityProofWithChallenge:
+      type: object
+      description: A Data Integrity Proof that includes a challenge and a domain as defined by the W3C VC Data Integrity specification.
       properties:
         type:
           type: string
@@ -563,92 +745,11 @@ components:
         type: DataIntegrityProof
         cryptosuite: ecdsa-rdfc-2019
         created: '2024-01-11T19:14:04Z'
-        verificationMethod: https://di.example/issuer#zDnaepBuvsQ8cpsWrVKw8fbpGpvPeNSjVPTWoq6cRqaYzBKVP
-        proofPurpose: assertionMethod
+        domain: domain.example
+        challenge: ce2e12b0-35a0-11f0-85df-7bcb79038e44
+        verificationMethod: https://di.example/holder#zDnadqAtcdP6agfXsTWu5darHnbGyTDkKGFYmn8dQraYzCJMZ
+        proofPurpose: authentication
         proofValue: zXb23ZkdakfJNUhiTEdwyE598X7RLrkjnXEADLQZ7vZyUGXX8cyJZRBkNw813SGsJHWrcpo4Y8hRJ7adYn35Eetq
-    VerifiableCredential:
-      type: object
-      description: A JSON-LD Verifiable Credential with a proof.
-      allOf:
-        - $ref: '#/components/schemas/Credential'
-        - type: object
-          properties:
-            proof:
-              $ref: '#/components/schemas/DataIntegrityProof'
-      example:
-        '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
-        id: http://example.gov/credentials/3732
-        type:
-          - VerifiableCredential
-          - UniversityDegreeCredential
-        issuer: did:example:123
-        issuanceDate: '2020-03-16T22:37:26.544Z'
-        credentialSubject:
-          id: did:example:123
-          degree:
-            type: BachelorDegree
-            name: Bachelor of Science and Arts
-        proof:
-          type: Ed25519Signature2018
-          created: '2020-04-02T18:28:08Z'
-          verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
-          proofPurpose: assertionMethod
-          jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
-    Presentation:
-      type: object
-      description: A JSON-LD Verifiable Presentation without a proof.
-      properties:
-        '@context':
-          type: array
-          description: The JSON-LD context of the presentation.
-          items:
-            type: string
-        id:
-          type: string
-          description: The ID of the presentation.
-        type:
-          type: array
-          description: The JSON-LD type of the presentation.
-          items:
-            type: string
-        holder:
-          type: object
-          description: The holder - will be ignored if no proof is present since there is no proof of authority over the credentials
-          nullable: true
-        verifiableCredential:
-          type: array
-          description: The Verifiable Credentials
-          items:
-            $ref: '#/components/schemas/VerifiableCredential'
-      example:
-        '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
-        holder: did:example:123
-        type: VerifiablePresentation
-        verifiableCredential:
-          - '@context':
-              - https://www.w3.org/2018/credentials/v1
-              - https://www.w3.org/2018/credentials/examples/v1
-          - id: http://example.gov/credentials/3732
-          - type:
-              - VerifiableCredential
-              - UniversityDegreeCredential
-          - issuer: did:example:123
-          - issuanceDate: '2020-03-16T22:37:26.544Z'
-          - credentialSubject:
-              id: did:example:123
-              degree:
-                type: BachelorDegree
-                name: Bachelor of Science and Arts
-          - proof:
-              type: Ed25519Signature2018
-              created: '2020-04-02T18:28:08Z'
-              verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
-              proofPurpose: assertionMethod
-              jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
     VerifiablePresentation:
       type: object
       description: A JSON-LD Verifiable Presentation with a proof.
@@ -657,40 +758,42 @@ components:
         - type: object
           properties:
             proof:
-              $ref: '#/components/schemas/DataIntegrityProof'
+              $ref: '#/components/schemas/DataIntegrityProofWithChallenge'
       example:
         '@context':
-          - https://www.w3.org/2018/credentials/v1
-          - https://www.w3.org/2018/credentials/examples/v1
+          - https://www.w3.org/ns/credentials/v2
+          - https://www.w3.org/ns/credentials/examples/v2
         holder: did:example:123
         type: VerifiablePresentation
         verifiableCredential:
           - '@context':
-              - https://www.w3.org/2018/credentials/v1
-              - https://www.w3.org/2018/credentials/examples/v1
+              - https://www.w3.org/ns/credentials/v2
+              - https://www.w3.org/ns/credentials/examples/v2
           - id: http://example.gov/credentials/3732
           - type:
               - VerifiableCredential
               - UniversityDegreeCredential
           - issuer: did:example:123
-          - issuanceDate: '2020-03-16T22:37:26.544Z'
+          - validFrom: '2020-03-16T22:37:26.544Z'
           - credentialSubject:
               id: did:example:123
               degree:
                 type: BachelorDegree
                 name: Bachelor of Science and Arts
           - proof:
-              type: Ed25519Signature2018
+              type: DataIntegrityProof
+              cryptosuite: eddsa-rdfc-2022
               created: '2020-04-02T18:28:08Z'
               verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
               proofPurpose: assertionMethod
-              jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+              proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
         proof:
-          type: Ed25519Signature2018
+          type: DataIntegrityProof
+          cryptosuite: ecdsa-rdfc-2019
           created: '2020-04-02T18:28:08Z'
           verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
           proofPurpose: assertionMethod
-          jws: eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..YtqjEYnFENT7fNW-COD0HAACxeuQxPKAmp4nIl8jYAu__6IH2FpSxv81w-l5PvE1og50tS9tH8WyXMlXyo45CA
+          proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
   parameters:
     LocalWorkflowId:
       name: localWorkflowId
