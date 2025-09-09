@@ -44,7 +44,7 @@ paths:
           description: invalid input!
   /presentations/verify:
     post:
-      summary: Verifies a Presentation with or without proofs attached and returns a verificationResult in the response body.
+      summary: Verifies a Presentation and all Verifiable Credentials it contains, returning detailed verification results.
       tags:
         - Presentations
       security:
@@ -53,7 +53,25 @@ paths:
         - zCap: []
       operationId: verifyPresentation
       x-expectedCaller: Verification Coordinator
-      description: Verifies a verifiablePresentation and returns a verificationResult in the response body.  Given the possibility of denial of service, buffer overflow, or other style attacks, an implementation is permitted to rate limit or restrict requests against this API endpoint to those requests that contain only a single credential with a 413 or 429 error code as appropriate.
+      description: |
+        Verifies a verifiablePresentation and, by default, all verifiable credentials
+        contained within it.
+
+        The verification process includes verifying the presentation's own proof (including domain
+        and challenge validation, if provided); verifying each contained verifiable credential's proof, 
+        status, and validity period(s); and checking that the holder in the presentation matches the
+        verification method used in the presentation's proof.
+
+        Business rule validation (such as verifying that credential subjects match the presentation holder)
+        is outside the scope of this verification endpoint and should be performed by the calling application.
+
+        The API is compositional: when credential verification is disabled or limited via 
+        implementation-specific options, individual credentials can be verified separately 
+        using the <code>/credentials/verify</code> endpoint.
+
+        Given the possibility of denial of service, buffer overflow, or other attacks, an implementation 
+        is permitted to apply rate limits or otherwise restrict requests against this API endpoint 
+        as needed, using a <code>413</code>, <code>429</code>, or other response error code as appropriate.
       requestBody:
         content:
           application/json:
@@ -65,13 +83,21 @@ paths:
         description: Parameters for verifying a verifiablePresentation.
       responses:
         '200':
-          description: Verifiable Presentation successfully verified!
+          description: |
+
+            Verification process completed successfully. The response body contains detailed results 
+            indicating whether the presentation and its contained credentials passed or failed verification. 
+            A <code>200</code> status indicates the verification process itself succeeded, regardless of whether 
+            the presentation and/or credentials were determined to be valid or invalid.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/schemas-VerificationResult'
         '400':
-          description: Invalid or malformed input
+          description: |
+            Invalid or malformed input that prevented the verification process from being performed. 
+            This indicates issues with the request format, structure, or parameters, rather than 
+            verification failures.
         '413':
           description: Payload too large
         '429':
@@ -192,7 +218,7 @@ components:
           description: The expirationDate
         credentialSubject:
           type: object
-          description: The subject
+          description: A REQUIRED property describing the subject of the credential.
       example:
         '@context':
           - https://www.w3.org/ns/credentials/v2
@@ -331,7 +357,7 @@ components:
       properties:
         verified:
           type: boolean
-          description: Overall verification assertion of the VerifiableCredential. This is set to `True` if no errors were detected during the verification process; otherwise, `False`. See error handling section for more guidance around errors, warnings, and validation and verification steps.
+          description: Overall verification assertion of the VerifiableCredential. This is set to <code>true</code> if no errors were detected during the verification process; otherwise, <code>false</code>. See error handling section for more guidance around errors, warnings, and verification steps.
         credential:
           type: object
           description: The VerifiableCredential used as the verification input.
@@ -343,67 +369,67 @@ components:
         results:
           type: object
           additionalProperties: false
-          description: Verification results to be included as a more verbose output. Keys are mapped to properties from the Verifiable Credential Data Model which are subject to validations.
+          description: Verification results to be included as a more verbose output. Keys are mapped to properties from the Verifiable Credential Data Model.
           properties:
             validFrom:
               type: object
-              description: Results of validating the validFrom property, if present in the VerifiableCredential.
+              description: Results of verifying the validFrom property, if present in the VerifiableCredential.
               properties:
-                valid:
+                verified:
                   type: boolean
-                  description: Validation result.
+                  description: Verification result.
                 input:
                   type: string
                   description: The validFrom value.
             validUntil:
               type: object
-              description: Results of validating the validUntil property, if present in the VerifiableCredential.
+              description: Results of verifying the validUntil property, if present in the VerifiableCredential.
               properties:
-                valid:
+                verified:
                   type: boolean
-                  description: Validation result.
+                  description: Verification result.
                 input:
                   type: string
                   description: The validUntil value.
             credentialSchema:
               type: array
-              description: Results from validating the credentialSchema objects if any.
+              description: Results from verifying the credentialSchema objects if any.
               items:
                 type: object
-                description: Results from validating a credentialSchema object.
+                description: Results from verifying a credentialSchema object.
                 properties:
-                  valid:
+                  verified:
                     type: boolean
-                    description: Results of validating the credentialSchema object.
+                    description: Results of verifying the credentialSchema object.
                   input:
                     type: object
                     description: The credentialSchema object.
             credentialStatus:
               type: array
-              description: Results from validating the credentialStatus objects if any.
+              description: Results from verifying the credentialStatus objects if any.
               items:
                 type: object
-                description: Results of validating a credentialStatus object.
+                description: Results of verifying a credentialStatus object.
                 properties:
                   value:
                     type: integer
-                    description: Value of the statusEntry Bit.
-                  valid:
+                    description: The specific status value associated with the status entry.
+                  verified:
                     type: boolean
-                    description: Results of validating the credentialStatus object.
+                    description: Results of verifying the credentialStatus object.
                   input:
                     type: object
                     description: The credentialStatus object.
             proof:
               type: array
-              description: Results from validating the proof objects if any.
+              description: Results from verifying the proof objects if any.
               items:
                 type: object
-                description: Results from validating a proof object.
+                description: Results from verifying a proof object.
                 properties:
-                  valid:
+                  verified:
                     type: boolean
-                    description: Results of validating the proof object.
+                    description: Results of verifying the proof object.
                   input:
                     type: object
                     description: The proof object.
@@ -559,8 +585,11 @@ components:
           proofValue: zaHXrr7AQdydBk3ahpCDpWbxfLokDqmCToYm2dyWvpcFVyWooC2he63w1f7UNQoAMKdhaRtcnaE2KTo5o5vTCcfw
     VerifyPresentationOptions:
       type: object
-      additionalProperties: false
-      description: Options for specifying how a presentation is verified.
+      additionalProperties: true
+      description: |-
+        Options for specifying how a presentation is verified.
+        Implementations MAY extend this object with additional properties to control verification behavior. Common extensions may include options to disable verification of contained credentials (e.g., for debugging or when only presentation-level verification is needed); fine-grained controls for verification of credential aspects such as status checks, validity period validation, proof verification, and schema validation; and selective verification controls for specific credentials within the presentation.
+        The API is compositional when credential verification is disabled or limited; indvidual credentials can be verified separately using the /credentials/verify endpoint.
       properties:
         challenge:
           type: string
@@ -601,72 +630,196 @@ components:
       properties:
         verified:
           type: boolean
-          description: Overall verification assertion of the VerifiablePresentation. This is set to `True` if no errors were detected during the verification process; otherwise, `False`. See error handling section for more guidance around errors, warnings, and validation and verification steps.
+          description: Overall verification assertion of the VerifiablePresentation. This is set to <code>true</code> if the VerifiablePresentation and all checked VerifiableCredentials passed verification; otherwise, <code>false</code>. See error handling section for more guidance around errors and warnings, and validation and verification steps.
         verifiablePresentation:
           type: object
           description: The VerifiablePresentation used as the verification input.
         problemDetails:
           type: array
-          description: Array consisting of ProblemDetails objects.
+          description: Array consisting of ProblemDetails objects for overall presentation-level issues.
           items:
             $ref: '#/components/schemas/ProblemDetails'
         results:
           type: object
           additionalProperties: false
-          description: Verification results to be included as a more verbose output. Keys are mapped to properties from the Verifiable Credential Data Model which are subject to validations.
+          description: Detailed verification results for both VerifiablePresentation and all VerifiableCredentials contained within it, by default. Keys are mapped to properties from the Verifiable Credential Data Model which are subject to validations.
           properties:
-            challenge:
+            presentation:
               type: object
-              description: If provided in the verification options, the result of validating the security challenge across all proofs provided.
+              additionalProperties: false
+              description: Verification results specific to the VerifiablePresentation itself (not its contained VerifiableCredentials).
               properties:
-                valid:
-                  type: boolean
-                  description: Result of validating the security challenge across all proofs provided.
-                input:
-                  type: string
-                  description: The challenge input string.
-            domain:
-              type: object
-              description: If provided in the verification options, the result of validating the security domain across all proofs provided.
-              properties:
-                valid:
-                  type: boolean
-                  description: Result of validating the security domain across all proofs provided.
-                input:
-                  type: string
-                  description: The security domain input string.
-            holder:
-              type: object
-              description: Result from validating the holder, if any.
-              properties:
-                valid:
-                  type: boolean
-                  description: Result of validating the holder.
-                input:
-                  type: string
-                  description: The holder input string.
-            proof:
-              type: array
-              description: Results from validating the proof objects if any.
-              items:
-                type: object
-                description: Results from validating a proof object.
-                properties:
-                  valid:
-                    type: boolean
-                    description: Results of validating the proof object.
-                  input:
+                challenge:
+                  type: object
+                  description: If provided in the verification options, the result of verifying the security challenge across all proofs provided.
+                  properties:
+                    verified:
+                      type: boolean
+                      description: Result of verifying the security challenge across all proofs provided.
+                    input:
+                      type: string
+                      description: The challenge input string.
+                domain:
+                  type: object
+                  description: If provided in the verification options, the result of verifying the security domain across all proofs provided.
+                  properties:
+                    verified:
+                      type: boolean
+                      description: Result of verifying the security domain across all proofs provided.
+                    input:
+                      type: string
+                      description: The security domain input string.
+                holder:
+                  type: object
+                  description: Result from verifying the holder, if any.
+                  properties:
+                    verified:
+                      type: boolean
+                      description: Result of verifying the holder.
+                    input:
+                      type: string
+                      description: The holder input string.
+                proof:
+                  type: array
+                  description: Results from verifying the proof objects if any.
+                  items:
                     type: object
-                    description: The proof object.
+                    description: Results from verifying a proof object.
+                    properties:
+                      verified:
+                        type: boolean
+                        description: Results of verifying the proof object.
+                      input:
+                        type: object
+                        description: The proof object.
+                      problemDetails:
+                        type: array
+                        description: Issues sepecific to this proof.
+                        items:
+                          $ref: '#/components/schemas/ProblemDetails'
+            credentials:
+              type: array
+              description: Detailed verification results for each VerifiableCredential in the VerifiablePresentation.
+              items:
+                $ref: '#/components/schemas/VerificationResult'
       example:
         verified: false
         verifiablePresentation: {}
         problemDetails:
-          - title: PARSING_ERROR
-            type: https://www.w3.org/TR/vc-data-model#PARSING_ERROR
+          - type: https://www.w3.org/TR/vc-data-model-2.0/#PARSING_ERROR
+            title: Parsing error
+            description: 'There was a parsing error on line 32, column 5: A comma was expected after the " character.'
         results:
-          holder: {}
-          proof: []
+          presentation:
+            challenge:
+              valid: true
+              input: d436f0c8-fbd9-4e48-bbb2-55fc5d0920a8
+            domain:
+              valid: true
+              input: example.com
+            holder:
+              valid: true
+              input: did:example:123
+            proof:
+              - valid: true
+                input:
+                  type: DataIntegrityProof
+                  cryptosuite: eddsa-rdfc-2022
+                  created: '2020-04-02T18:28:08Z'
+                  verificationMethod: did:example:123#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
+                  proofPurpose: authentication
+                  proofValue: z5h8W7qJkNrhGjJHWxZ8oN5h8gYZ4h8x7h5b8k2dqKwJ5J8j7h5k8m3qKvJ2j7qJ5h8gYZ4h8x7h5b8k2dqKwJ5J8j7h5k8m3qKvJ2j7qJ5h8gYZ4h8x
+                problemDetails: []
+          credentials:
+            - verified: true
+              credential:
+                '@context':
+                  - https://www.w3.org/ns/credentials/v2
+                  - https://www.w3.org/ns/credentials/examples/v2
+                id: http://example.gov/credentials/3732
+                type:
+                  - VerifiableCredential
+                  - DriverLicense
+                issuer: did:example:dmv456
+                validFrom: '2023-01-01T00:00:00Z'
+                validUntil: '2027-01-01T00:00:00Z'
+                credentialSubject:
+                  id: did:example:alice123
+                  licenseNumber: DL123456789
+              problemDetails: []
+              results:
+                validFrom:
+                  valid: true
+                  input: '2023-01-01T00:00:00Z'
+                validUntil:
+                  valid: true
+                  input: '2027-01-01T00:00:00Z'
+                credentialStatus:
+                  - value: 0
+                    valid: true
+                    input:
+                      id: https://example.com/status/3#94567
+                      type: BitstringStatusListEntry
+                      statusPurpose: revocation
+                      statusListIndex: '94567'
+                      statusListCredential: https://example.com/status/3
+                proof:
+                  - valid: true
+                    input:
+                      type: DataIntegrityProof
+                      cryptosuite: eddsa-rdfc-2022
+                      created: '2023-01-01T10:00:00Z'
+                      verificationMethod: did:example:dmv456#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
+                      proofPurpose: assertionMethod
+                      proofValue: z3dY5z8x7h5b8k2dqKwJ5J8j7h5k8m3qKvJ2j7qJ5h8gYZ4h8x7h5b8k2dqKwJ5J8j7h5k8m3qKvJ2j7qJ5h8gYZ4h8x7h5b8k2dqKwJ5J8j7h5k8m3qKvJ2j7qJ
+                    problemDetails: []
+            - verified: false
+              credential:
+                '@context':
+                  - https://www.w3.org/ns/credentials/v2
+                  - https://www.w3.org/ns/credentials/examples/v2
+                id: http://example.gov/credentials/3733
+                type:
+                  - VerifiableCredential
+                  - UniversityDegree
+                issuer: did:example:university789
+                validFrom: '2020-01-01T00:00:00Z'
+                validUntil: '2022-12-31T23:59:59Z'
+                credentialSubject:
+                  id: did:example:alice123
+                  degree:
+                    type: BachelorDegree
+                    name: Bachelor of Science
+              problemDetails:
+                - type: https://www.w3.org/TR/vc-data-model-2.0#CREDENTIAL_EXPIRED
+                  title: Credential expired
+                  detail: The credential's validUntil date of '2022-12-31T23:59:59Z' has passed.
+              results:
+                validFrom:
+                  valid: true
+                  input: '2020-01-01T00:00:00Z'
+                validUntil:
+                  valid: false
+                  input: '2022-12-31T23:59:59Z'
+                credentialStatus:
+                  - value: 0
+                    valid: true
+                    input:
+                      id: https://example.com/status/4#12345
+                      type: BitstringStatusListEntry
+                      statusPurpose: revocation
+                      statusListIndex: '12345'
+                      statusListCredential: https://example.com/status/4
+                proof:
+                  - valid: true
+                    input:
+                      type: DataIntegrityProof
+                      cryptosuite: eddsa-rdfc-2022
+                      created: '2020-01-01T10:00:00Z'
+                      verificationMethod: did:example:university789#z6MksHh7qHWvybLg5QTPPdG2DgEjjduBDArV9EF9mRiRzMBN
+                      proofPurpose: assertionMethod
+                      proofValue: z8m9N4p5q6r7s8t9u0v1w2x3y4z5a6b7c8d9e0f1g2h3i4j5k6l7m8n9o0p1q2r3s4t5u6v7w8x9y0z1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v
+                    problemDetails: []
     CreateChallengeResult:
       type: object
       additionalProperties: false

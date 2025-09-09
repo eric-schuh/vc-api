@@ -180,11 +180,11 @@ components:
           description: The validUntil date
         credentialSubject:
           type: object
-          description: The subject
+          description: A REQUIRED property describing the subject of the credential.
         proof:
           type: object
           description: |
-            An optional proof or array of proofs for credentials that are secured using proof sets or chains.  When present, the configuration of the issuer instance determines how these existing proofs are processed (e.g., append to create proof sets/chains, or trigger an error).
+            An optional proof or array of proofs for credentials that are secured using proof sets or chains. When present, the configuration of the issuer instance determines how these existing proofs are processed (e.g., append to create proof sets/chains, or trigger an error).
           oneOf:
             - type: object
             - type: array
@@ -264,7 +264,7 @@ components:
           description: The expirationDate
         credentialSubject:
           type: object
-          description: The subject
+          description: A REQUIRED property describing the subject of the credential.
       example:
         '@context':
           - https://www.w3.org/ns/credentials/v2
